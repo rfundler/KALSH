@@ -1079,26 +1079,201 @@ export default function TradingDashboard() {
       {/* Strike Detail Modal */}
       {selectedStrike && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] overflow-hidden">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b bg-gray-50">
-              <div>
-                <h2 className="text-lg font-bold">{selectedStrike.yes_sub_title || selectedStrike.title}</h2>
-                <p className="text-xs text-gray-500">{selectedStrike.ticker}</p>
+            <div className="flex items-center justify-between p-4 border-b bg-gray-900 text-white">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h2 className="text-lg font-bold">{selectedStrike.yes_sub_title || selectedStrike.title}</h2>
+                  <p className="text-xs text-gray-400">{selectedStrike.ticker}</p>
+                </div>
+                {/* Current price display */}
+                {strikeOrderbook && (
+                  <div className="flex items-center gap-4 ml-4">
+                    <div className="text-center">
+                      <div className="text-xs text-gray-400">Bid</div>
+                      <div className="text-lg font-bold text-green-400">
+                        {strikeOrderbook.yes?.[0]?.[0] || '--'}¢
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-400">Ask</div>
+                      <div className="text-lg font-bold text-red-400">
+                        {strikeOrderbook.no?.[0] ? 100 - strikeOrderbook.no[0][0] : '--'}¢
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-gray-400">Spread</div>
+                      <div className="text-lg font-medium text-gray-300">
+                        {strikeOrderbook.yes?.[0] && strikeOrderbook.no?.[0]
+                          ? `${(100 - strikeOrderbook.no[0][0]) - strikeOrderbook.yes[0][0]}¢`
+                          : '--'}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => setSelectedStrike(null)}
-                className="w-8 h-8 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded-full text-gray-600 text-xl"
+                className="w-8 h-8 flex items-center justify-center bg-gray-700 hover:bg-gray-600 rounded-full text-gray-300 text-xl"
               >
                 ×
               </button>
             </div>
 
             {/* Modal Content */}
-            <div className="p-4 overflow-y-auto max-h-[calc(90vh-80px)]">
+            <div className="p-4 overflow-y-auto max-h-[calc(90vh-80px)] bg-gray-900">
+              {/* Trading Controls */}
+              <div className="bg-gray-800 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  {/* YES Trading */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const input = orderInputs[selectedStrike.ticker]
+                        if (!input?.qty) { alert('Enter quantity'); return }
+                        placeOrder(selectedStrike.ticker, 'yes', 'buy')
+                      }}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
+                    >
+                      Buy Yes
+                    </button>
+                    <button
+                      onClick={() => {
+                        const input = orderInputs[selectedStrike.ticker]
+                        if (!input?.qty) { alert('Enter quantity'); return }
+                        placeOrder(selectedStrike.ticker, 'yes', 'sell')
+                      }}
+                      className="px-4 py-2 bg-green-900 hover:bg-green-800 text-green-300 border border-green-600 rounded-lg font-medium"
+                    >
+                      Sell Yes
+                    </button>
+                  </div>
+
+                  {/* Price/Qty Inputs */}
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Price (¢)</label>
+                      <input
+                        type="number"
+                        placeholder="Limit"
+                        value={orderInputs[selectedStrike.ticker]?.price || ''}
+                        onChange={(e) => setOrderInputs(prev => ({
+                          ...prev,
+                          [selectedStrike.ticker]: { ...prev[selectedStrike.ticker], price: e.target.value }
+                        }))}
+                        className="w-24 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Quantity</label>
+                      <input
+                        type="number"
+                        placeholder="Qty"
+                        value={orderInputs[selectedStrike.ticker]?.qty || ''}
+                        onChange={(e) => setOrderInputs(prev => ({
+                          ...prev,
+                          [selectedStrike.ticker]: { ...prev[selectedStrike.ticker], qty: e.target.value }
+                        }))}
+                        className="w-20 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-center"
+                      />
+                    </div>
+                    {/* Quick qty buttons */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex gap-1">
+                        {[10, 25, 50].map(q => (
+                          <button
+                            key={q}
+                            onClick={() => setOrderInputs(prev => ({
+                              ...prev,
+                              [selectedStrike.ticker]: { ...prev[selectedStrike.ticker], qty: String(q) }
+                            }))}
+                            className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs"
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-1">
+                        {[100, 250, 500].map(q => (
+                          <button
+                            key={q}
+                            onClick={() => setOrderInputs(prev => ({
+                              ...prev,
+                              [selectedStrike.ticker]: { ...prev[selectedStrike.ticker], qty: String(q) }
+                            }))}
+                            className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs"
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* NO Trading */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const input = orderInputs[selectedStrike.ticker]
+                        if (!input?.qty) { alert('Enter quantity'); return }
+                        placeOrder(selectedStrike.ticker, 'no', 'buy')
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+                    >
+                      Buy No
+                    </button>
+                    <button
+                      onClick={() => {
+                        const input = orderInputs[selectedStrike.ticker]
+                        if (!input?.qty) { alert('Enter quantity'); return }
+                        placeOrder(selectedStrike.ticker, 'no', 'sell')
+                      }}
+                      className="px-4 py-2 bg-red-900 hover:bg-red-800 text-red-300 border border-red-600 rounded-lg font-medium"
+                    >
+                      Sell No
+                    </button>
+                  </div>
+                </div>
+
+                {/* Take liquidity buttons */}
+                <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-gray-700">
+                  <button
+                    onClick={() => {
+                      const ask = strikeOrderbook?.no?.[0] ? 100 - strikeOrderbook.no[0][0] : null
+                      const qty = strikeOrderbook?.no?.reduce((sum, [_, q]) => sum + q, 0) || 0
+                      if (ask && qty > 0) {
+                        setOrderInputs(prev => ({
+                          ...prev,
+                          [selectedStrike.ticker]: { price: String(ask), qty: String(qty) }
+                        }))
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-green-800 hover:bg-green-700 text-green-200 rounded text-sm"
+                  >
+                    Take All Yes ({strikeOrderbook?.no?.reduce((sum, [_, q]) => sum + q, 0) || 0})
+                  </button>
+                  <button
+                    onClick={() => {
+                      const ask = strikeOrderbook?.yes?.[0] ? 100 - strikeOrderbook.yes[0][0] : null
+                      const qty = strikeOrderbook?.yes?.reduce((sum, [_, q]) => sum + q, 0) || 0
+                      if (ask && qty > 0) {
+                        setOrderInputs(prev => ({
+                          ...prev,
+                          [selectedStrike.ticker]: { price: String(ask), qty: String(qty) }
+                        }))
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-red-800 hover:bg-red-700 text-red-200 rounded text-sm"
+                  >
+                    Take All No ({strikeOrderbook?.yes?.reduce((sum, [_, q]) => sum + q, 0) || 0})
+                  </button>
+                </div>
+              </div>
+
               {/* Time Period Selector */}
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-sm text-gray-600">Period:</span>
+                <span className="text-sm text-gray-400">Period:</span>
                 {[
                   { label: '1m', value: 1 },
                   { label: '5m', value: 5 },
@@ -1109,96 +1284,281 @@ export default function TradingDashboard() {
                   <button
                     key={value}
                     onClick={() => changeHistoryPeriod(value)}
-                    className={`px-3 py-1 rounded text-sm ${historyPeriod === value ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+                    className={`px-3 py-1 rounded text-sm ${historyPeriod === value ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                   >
                     {label}
                   </button>
                 ))}
               </div>
 
-              {/* Price History Chart (simple ASCII-style for now) */}
-              <div className="bg-gray-100 rounded-lg p-4 mb-4">
-                <h3 className="font-medium text-sm mb-2">Price History</h3>
+              {/* Price Chart - Trading Style */}
+              <div className="bg-gray-800 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium text-sm text-gray-300">Price Chart</h3>
+                  {strikeHistory.length > 0 && (
+                    <div className="text-xs text-gray-400">
+                      High: {Math.max(...strikeHistory.map(p => p.yes_price || 0))}¢ ·
+                      Low: {Math.min(...strikeHistory.filter(p => p.yes_price > 0).map(p => p.yes_price))}¢
+                    </div>
+                  )}
+                </div>
                 {strikeHistory.length > 0 ? (
-                  <div className="h-32 flex items-end gap-px">
-                    {strikeHistory.slice(-50).map((point, i) => {
-                      const height = point.yes_price || 50
-                      return (
-                        <div
-                          key={i}
-                          className="flex-1 bg-blue-500 rounded-t min-w-[2px]"
-                          style={{ height: `${height}%` }}
-                          title={`${new Date(point.ts * 1000).toLocaleString()}: ${point.yes_price}¢`}
+                  <div className="relative">
+                    {/* Y-axis labels */}
+                    <div className="absolute left-0 top-0 bottom-6 w-10 flex flex-col justify-between text-xs text-gray-500">
+                      {(() => {
+                        const prices = strikeHistory.map(p => p.yes_price || 50)
+                        const minPrice = Math.max(0, Math.min(...prices) - 5)
+                        const maxPrice = Math.min(100, Math.max(...prices) + 5)
+                        const range = maxPrice - minPrice || 1
+                        return [100, 75, 50, 25, 0]
+                          .filter(v => v >= minPrice && v <= maxPrice)
+                          .map(v => (
+                            <span key={v} style={{ position: 'absolute', top: `${((maxPrice - v) / range) * 100}%` }}>
+                              {v}¢
+                            </span>
+                          ))
+                      })()}
+                    </div>
+
+                    {/* Chart area */}
+                    <div className="ml-12 h-48 relative border-l border-b border-gray-700">
+                      {/* Grid lines */}
+                      {[25, 50, 75].map(v => {
+                        const prices = strikeHistory.map(p => p.yes_price || 50)
+                        const minPrice = Math.max(0, Math.min(...prices) - 5)
+                        const maxPrice = Math.min(100, Math.max(...prices) + 5)
+                        const range = maxPrice - minPrice || 1
+                        if (v < minPrice || v > maxPrice) return null
+                        return (
+                          <div
+                            key={v}
+                            className="absolute left-0 right-0 border-t border-gray-700 border-dashed"
+                            style={{ top: `${((maxPrice - v) / range) * 100}%` }}
+                          />
+                        )
+                      })}
+
+                      {/* Candlestick/Bar chart */}
+                      <svg className="w-full h-full" preserveAspectRatio="none">
+                        {(() => {
+                          const data = strikeHistory.slice(-60)
+                          if (data.length === 0) return null
+
+                          const prices = data.map(p => p.yes_price || 50)
+                          const minPrice = Math.max(0, Math.min(...prices) - 5)
+                          const maxPrice = Math.min(100, Math.max(...prices) + 5)
+                          const range = maxPrice - minPrice || 1
+
+                          const barWidth = 100 / data.length
+
+                          return data.map((point, i) => {
+                            const x = (i / data.length) * 100
+                            const price = point.yes_price || 50
+                            const bid = point.yes_bid || price
+                            const ask = point.yes_ask || price
+
+                            // Candlestick body
+                            const open = i > 0 ? (data[i-1].yes_price || 50) : price
+                            const close = price
+                            const high = Math.max(open, close, ask)
+                            const low = Math.min(open, close, bid)
+
+                            const isGreen = close >= open
+                            const bodyTop = ((maxPrice - Math.max(open, close)) / range) * 100
+                            const bodyBottom = ((maxPrice - Math.min(open, close)) / range) * 100
+                            const wickTop = ((maxPrice - high) / range) * 100
+                            const wickBottom = ((maxPrice - low) / range) * 100
+
+                            return (
+                              <g key={i}>
+                                {/* Wick */}
+                                <line
+                                  x1={`${x + barWidth/2}%`}
+                                  y1={`${wickTop}%`}
+                                  x2={`${x + barWidth/2}%`}
+                                  y2={`${wickBottom}%`}
+                                  stroke={isGreen ? '#22c55e' : '#ef4444'}
+                                  strokeWidth="1"
+                                />
+                                {/* Body */}
+                                <rect
+                                  x={`${x + barWidth * 0.1}%`}
+                                  y={`${bodyTop}%`}
+                                  width={`${barWidth * 0.8}%`}
+                                  height={`${Math.max(bodyBottom - bodyTop, 0.5)}%`}
+                                  fill={isGreen ? '#22c55e' : '#ef4444'}
+                                  opacity={0.9}
+                                />
+                              </g>
+                            )
+                          })
+                        })()}
+
+                        {/* Price line overlay */}
+                        <polyline
+                          fill="none"
+                          stroke="#3b82f6"
+                          strokeWidth="2"
+                          points={(() => {
+                            const data = strikeHistory.slice(-60)
+                            if (data.length === 0) return ''
+
+                            const prices = data.map(p => p.yes_price || 50)
+                            const minPrice = Math.max(0, Math.min(...prices) - 5)
+                            const maxPrice = Math.min(100, Math.max(...prices) + 5)
+                            const range = maxPrice - minPrice || 1
+
+                            return data.map((point, i) => {
+                              const x = (i / data.length) * 100
+                              const y = ((maxPrice - (point.yes_price || 50)) / range) * 100
+                              return `${x},${y}`
+                            }).join(' ')
+                          })()}
                         />
-                      )
-                    })}
+                      </svg>
+
+                      {/* Current price marker */}
+                      {strikeHistory.length > 0 && (
+                        <div
+                          className="absolute right-0 transform translate-x-1 -translate-y-1/2 bg-blue-600 text-white text-xs px-1 rounded"
+                          style={{
+                            top: (() => {
+                              const prices = strikeHistory.map(p => p.yes_price || 50)
+                              const minPrice = Math.max(0, Math.min(...prices) - 5)
+                              const maxPrice = Math.min(100, Math.max(...prices) + 5)
+                              const range = maxPrice - minPrice || 1
+                              const lastPrice = strikeHistory[strikeHistory.length - 1]?.yes_price || 50
+                              return `${((maxPrice - lastPrice) / range) * 100}%`
+                            })()
+                          }}
+                        >
+                          {strikeHistory[strikeHistory.length - 1]?.yes_price}¢
+                        </div>
+                      )}
+                    </div>
+
+                    {/* X-axis labels */}
+                    <div className="ml-12 flex justify-between text-xs text-gray-500 mt-1">
+                      <span>{new Date(strikeHistory[0]?.ts * 1000).toLocaleTimeString()}</span>
+                      <span>{new Date(strikeHistory[Math.floor(strikeHistory.length/2)]?.ts * 1000).toLocaleTimeString()}</span>
+                      <span>{new Date(strikeHistory[strikeHistory.length - 1]?.ts * 1000).toLocaleTimeString()}</span>
+                    </div>
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-sm">No history data available</p>
-                )}
-                {strikeHistory.length > 0 && (
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>{new Date(strikeHistory[0]?.ts * 1000).toLocaleTimeString()}</span>
-                    <span>{new Date(strikeHistory[strikeHistory.length - 1]?.ts * 1000).toLocaleTimeString()}</span>
+                  <div className="h-48 flex items-center justify-center text-gray-500">
+                    No price history available
                   </div>
                 )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Full Orderbook */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-medium text-sm mb-3">Full Orderbook</h3>
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    {/* YES Side */}
-                    <div>
-                      <div className="font-medium text-green-700 mb-1">YES Bids</div>
-                      <div className="max-h-48 overflow-y-auto space-y-0.5">
-                        {strikeOrderbook?.yes && [...strikeOrderbook.yes].reverse().map(([price, qty], i) => (
-                          <div key={i} className="flex justify-between bg-green-50 px-2 py-0.5 rounded">
-                            <span className="text-green-700">{price}¢</span>
-                            <span>{qty}</span>
-                          </div>
-                        ))}
-                        {(!strikeOrderbook?.yes || strikeOrderbook.yes.length === 0) && (
-                          <div className="text-gray-400">No bids</div>
-                        )}
-                      </div>
+                {/* Full Orderbook - Trading Style */}
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <h3 className="font-medium text-sm mb-3 text-gray-300">Orderbook</h3>
+                  <div className="text-xs">
+                    {/* Headers */}
+                    <div className="flex text-gray-500 border-b border-gray-700 pb-1 mb-1">
+                      <span className="flex-1">Price</span>
+                      <span className="w-16 text-right">Qty</span>
+                      <span className="w-16 text-right">Total</span>
                     </div>
-                    {/* NO Side */}
-                    <div>
-                      <div className="font-medium text-red-700 mb-1">NO Bids</div>
-                      <div className="max-h-48 overflow-y-auto space-y-0.5">
-                        {strikeOrderbook?.no && [...strikeOrderbook.no].reverse().map(([price, qty], i) => (
-                          <div key={i} className="flex justify-between bg-red-50 px-2 py-0.5 rounded">
-                            <span className="text-red-700">{price}¢</span>
-                            <span>{qty}</span>
+
+                    {/* Asks (sell orders) - red, reversed so lowest ask at bottom */}
+                    <div className="max-h-32 overflow-y-auto flex flex-col-reverse">
+                      {strikeOrderbook?.no && [...strikeOrderbook.no].map(([noPrice, qty], i, arr) => {
+                        const askPrice = 100 - noPrice
+                        const total = arr.slice(0, i + 1).reduce((sum, [_, q]) => sum + q, 0)
+                        const maxQty = Math.max(...arr.map(([_, q]) => q))
+                        return (
+                          <div
+                            key={i}
+                            className="flex relative cursor-pointer hover:bg-red-900/50"
+                            onClick={() => setOrderInputs(prev => ({
+                              ...prev,
+                              [selectedStrike.ticker]: { price: String(askPrice), qty: String(total) }
+                            }))}
+                          >
+                            <div
+                              className="absolute inset-y-0 right-0 bg-red-900/30"
+                              style={{ width: `${(qty / maxQty) * 100}%` }}
+                            />
+                            <span className="flex-1 text-red-400 relative z-10">{askPrice}¢</span>
+                            <span className="w-16 text-right text-gray-300 relative z-10">{qty}</span>
+                            <span className="w-16 text-right text-gray-500 relative z-10">{total}</span>
                           </div>
-                        ))}
-                        {(!strikeOrderbook?.no || strikeOrderbook.no.length === 0) && (
-                          <div className="text-gray-400">No bids</div>
-                        )}
-                      </div>
+                        )
+                      })}
+                      {(!strikeOrderbook?.no || strikeOrderbook.no.length === 0) && (
+                        <div className="text-gray-600 py-2 text-center">No asks</div>
+                      )}
+                    </div>
+
+                    {/* Spread indicator */}
+                    <div className="border-y border-gray-700 py-1.5 my-1 text-center bg-gray-900">
+                      <span className="text-gray-400">Spread: </span>
+                      <span className="text-white font-medium">
+                        {strikeOrderbook?.yes?.[0] && strikeOrderbook?.no?.[0]
+                          ? `${(100 - strikeOrderbook.no[0][0]) - strikeOrderbook.yes[0][0]}¢`
+                          : '--'}
+                      </span>
+                    </div>
+
+                    {/* Bids (buy orders) - green */}
+                    <div className="max-h-32 overflow-y-auto">
+                      {strikeOrderbook?.yes && [...strikeOrderbook.yes].reverse().map(([price, qty], i, arr) => {
+                        const total = arr.slice(0, i + 1).reduce((sum, [_, q]) => sum + q, 0)
+                        const maxQty = Math.max(...arr.map(([_, q]) => q))
+                        return (
+                          <div
+                            key={i}
+                            className="flex relative cursor-pointer hover:bg-green-900/50"
+                            onClick={() => setOrderInputs(prev => ({
+                              ...prev,
+                              [selectedStrike.ticker]: { price: String(price), qty: String(total) }
+                            }))}
+                          >
+                            <div
+                              className="absolute inset-y-0 right-0 bg-green-900/30"
+                              style={{ width: `${(qty / maxQty) * 100}%` }}
+                            />
+                            <span className="flex-1 text-green-400 relative z-10">{price}¢</span>
+                            <span className="w-16 text-right text-gray-300 relative z-10">{qty}</span>
+                            <span className="w-16 text-right text-gray-500 relative z-10">{total}</span>
+                          </div>
+                        )
+                      })}
+                      {(!strikeOrderbook?.yes || strikeOrderbook.yes.length === 0) && (
+                        <div className="text-gray-600 py-2 text-center">No bids</div>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Recent Trades */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-medium text-sm mb-3">Recent Trades</h3>
-                  <div className="max-h-64 overflow-y-auto space-y-1 text-xs">
-                    {strikeTrades.length > 0 ? strikeTrades.map((trade) => (
-                      <div key={trade.trade_id} className="flex justify-between items-center bg-white px-2 py-1 rounded border">
-                        <span className={trade.taker_side === 'yes' ? 'text-green-600' : 'text-red-600'}>
-                          {trade.taker_side === 'yes' ? 'BUY' : 'SELL'} {trade.count}
-                        </span>
-                        <span className="font-medium">{trade.yes_price}¢</span>
-                        <span className="text-gray-400">
-                          {new Date(trade.created_time).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    )) : (
-                      <div className="text-gray-400">No recent trades</div>
-                    )}
+                {/* Recent Trades - Time & Sales */}
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <h3 className="font-medium text-sm mb-3 text-gray-300">Time & Sales</h3>
+                  <div className="text-xs">
+                    <div className="flex text-gray-500 border-b border-gray-700 pb-1 mb-1">
+                      <span className="flex-1">Time</span>
+                      <span className="w-16 text-right">Price</span>
+                      <span className="w-16 text-right">Size</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto space-y-0.5">
+                      {strikeTrades.length > 0 ? strikeTrades.map((trade) => (
+                        <div key={trade.trade_id} className="flex items-center py-0.5">
+                          <span className="flex-1 text-gray-400">
+                            {new Date(trade.created_time).toLocaleTimeString()}
+                          </span>
+                          <span className={`w-16 text-right font-medium ${trade.taker_side === 'yes' ? 'text-green-400' : 'text-red-400'}`}>
+                            {trade.yes_price}¢
+                          </span>
+                          <span className="w-16 text-right text-gray-300">{trade.count}</span>
+                        </div>
+                      )) : (
+                        <div className="text-gray-600 py-2 text-center">No recent trades</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
