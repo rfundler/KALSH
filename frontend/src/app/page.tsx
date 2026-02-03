@@ -255,6 +255,20 @@ export default function TradingDashboard() {
     }
   }
 
+  // Parse date from ticker for sorting
+  const getEventDateValue = (ticker: string): number => {
+    const match = ticker.match(/(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2})/i)
+    if (!match) return 0
+
+    const [, year, month, day] = match
+    const monthIndex: Record<string, number> = {
+      JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+      JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11
+    }
+
+    return new Date(2000 + parseInt(year), monthIndex[month.toUpperCase()], parseInt(day)).getTime()
+  }
+
   // Fetch Mentions
   const fetchEvents = async (search?: string) => {
     setLoading(true)
@@ -266,7 +280,15 @@ export default function TradingDashboard() {
 
       const res = await fetch(`${API}/api/events?${params}`)
       const data = await res.json()
-      setEvents(data.events || [])
+
+      // Sort events by date (earliest first)
+      const sortedEvents = (data.events || []).sort((a: Event, b: Event) => {
+        const dateA = getEventDateValue(a.event_ticker || a.ticker)
+        const dateB = getEventDateValue(b.event_ticker || b.ticker)
+        return dateA - dateB
+      })
+
+      setEvents(sortedEvents)
     } catch (e) {
       console.error('Failed to fetch events:', e)
     }
