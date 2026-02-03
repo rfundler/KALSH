@@ -14,10 +14,50 @@ interface Market {
 
 interface Event {
   ticker: string
+  event_ticker?: string
   title: string
+  sub_title?: string
   category: string
   type?: string
   markets: Market[]
+}
+
+// Parse date from event ticker like "KXNBAMENTION-26FEB03PHXPOR" -> "Feb 3"
+const parseEventDate = (ticker: string): string | null => {
+  // Match patterns like 26FEB03, 26JAN31, etc.
+  const match = ticker.match(/(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2})/i)
+  if (!match) return null
+
+  const [, year, month, day] = match
+  const monthNames: Record<string, string> = {
+    JAN: 'Jan', FEB: 'Feb', MAR: 'Mar', APR: 'Apr', MAY: 'May', JUN: 'Jun',
+    JUL: 'Jul', AUG: 'Aug', SEP: 'Sep', OCT: 'Oct', NOV: 'Nov', DEC: 'Dec'
+  }
+
+  const dayNum = parseInt(day, 10)
+  return `${monthNames[month.toUpperCase()]} ${dayNum}`
+}
+
+// Check if event is today or in the past
+const getEventStatus = (ticker: string): 'upcoming' | 'today' | 'live' | 'past' => {
+  const match = ticker.match(/(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2})/i)
+  if (!match) return 'upcoming'
+
+  const [, year, month, day] = match
+  const monthIndex: Record<string, number> = {
+    JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+    JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11
+  }
+
+  const eventDate = new Date(2000 + parseInt(year), monthIndex[month.toUpperCase()], parseInt(day))
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  eventDate.setHours(0, 0, 0, 0)
+
+  const diff = eventDate.getTime() - today.getTime()
+  if (diff < 0) return 'past'
+  if (diff === 0) return 'today'
+  return 'upcoming'
 }
 
 interface Position {
@@ -998,35 +1038,61 @@ export default function TradingDashboard() {
             <div className="text-gray-500">Loading...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {events.map((event) => (
-                <div
-                  key={event.ticker}
-                  onClick={() => setSelectedEvent(event)}
-                  className="bg-white rounded-lg border p-4 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all"
-                >
-                  <h3 className="font-medium text-gray-900 mb-3 line-clamp-2">{event.title}</h3>
+              {events.map((event) => {
+                const eventTicker = event.event_ticker || event.ticker
+                const eventDate = parseEventDate(eventTicker)
+                const status = getEventStatus(eventTicker)
 
-                  {/* Preview strikes */}
-                  <div className="space-y-1.5">
-                    {event.markets.slice(0, 4).map((market) => (
-                      <div key={market.ticker} className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 truncate mr-2">
-                          {market.yes_sub_title || market.title}
+                return (
+                  <div
+                    key={event.ticker}
+                    onClick={() => setSelectedEvent(event)}
+                    className={`bg-white rounded-lg border p-4 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all ${
+                      status === 'today' ? 'ring-2 ring-green-400' : ''
+                    }`}
+                  >
+                    {/* Date badge */}
+                    <div className="flex items-center justify-between mb-2">
+                      {eventDate && (
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                          status === 'today' ? 'bg-green-100 text-green-700' :
+                          status === 'past' ? 'bg-gray-100 text-gray-500' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {status === 'today' ? 'TODAY' : eventDate}
                         </span>
-                        <span className="font-medium">
-                          {market.last_price ? `${market.last_price}%` : '--'}
+                      )}
+                      {event.sub_title && (
+                        <span className="text-xs text-gray-500 truncate ml-2">
+                          {event.sub_title}
                         </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {event.markets.length > 4 && (
-                    <div className="text-xs text-blue-600 mt-2">
-                      +{event.markets.length - 4} more strikes
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    <h3 className="font-medium text-gray-900 mb-3 line-clamp-2">{event.title}</h3>
+
+                    {/* Preview strikes */}
+                    <div className="space-y-1.5">
+                      {event.markets.slice(0, 4).map((market) => (
+                        <div key={market.ticker} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600 truncate mr-2">
+                            {market.yes_sub_title || market.title}
+                          </span>
+                          <span className="font-medium">
+                            {market.last_price ? `${market.last_price}%` : '--'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {event.markets.length > 4 && (
+                      <div className="text-xs text-blue-600 mt-2">
+                        +{event.markets.length - 4} more strikes
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 

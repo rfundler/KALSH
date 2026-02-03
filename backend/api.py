@@ -450,6 +450,52 @@ async def get_related_market(ticker: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/events")
+async def get_events(
+    category: str = None,
+    search: str = None,
+    limit: int = 50,
+    series_ticker: str = None
+):
+    """Get events from Kalshi API."""
+    client = get_kalshi_client()
+    try:
+        params = f"limit={limit}"
+        if series_ticker:
+            params += f"&series_ticker={series_ticker}"
+
+        result = await client._request("GET", f"/events?{params}")
+        events = result.get("events", [])
+
+        # Filter by category if specified
+        if category:
+            events = [e for e in events if e.get("category", "").lower() == category.lower()]
+
+        # Filter by search if specified
+        if search:
+            search_lower = search.lower()
+            events = [e for e in events if search_lower in e.get("title", "").lower()]
+
+        # For each event, get its markets
+        enriched_events = []
+        for event in events[:limit]:
+            event_ticker = event.get("event_ticker", "")
+            try:
+                markets_result = await client._request("GET", f"/markets?event_ticker={event_ticker}")
+                event["markets"] = markets_result.get("markets", [])
+            except:
+                event["markets"] = []
+
+            # Include event_ticker in the response
+            event["ticker"] = event_ticker
+            enriched_events.append(event)
+
+        return {"events": enriched_events}
+    except Exception as e:
+        print(f"Error fetching events: {e}")
+        return {"events": [], "error": str(e)}
+
+
 @router.get("/positions")
 async def get_positions():
     client = get_kalshi_client()
