@@ -387,8 +387,9 @@ export default function TradingDashboard() {
   }, [selectedEvent])
 
   // Penny bot logic
-  const PENNY_BOT_ORDER_SIZE = 50  // Max 50 contracts per order
+  const PENNY_BOT_ORDER_SIZE = 10  // 10 contracts per order
   const PENNY_BOT_MIN_BID_QTY = 125  // Only penny jump if 125+ contracts at best bid
+  const PENNY_BOT_MAX_POSITION = 50  // Stop bidding after owning 50+ contracts
 
   const placePennyOrder = async (ticker: string, side: 'yes' | 'no', price: number) => {
     try {
@@ -506,12 +507,12 @@ export default function TradingDashboard() {
           // Don't place new order if params invalid
           if (!paramsValid) continue
 
-          // Check if we already hold >= 50 contracts on this side (max position)
+          // Check if we already hold >= max position contracts on this side
           const position = positions.find(p => p.ticker === market.ticker)
           const heldQty = position?.position || 0
           // position > 0 means YES, position < 0 means NO
-          if (side === 'yes' && heldQty >= 50) continue
-          if (side === 'no' && heldQty <= -50) continue
+          if (side === 'yes' && heldQty >= PENNY_BOT_MAX_POSITION) continue
+          if (side === 'no' && heldQty <= -PENNY_BOT_MAX_POSITION) continue
 
           // Check there's no ask that would immediately fill us (spread exists)
           const oppositeAsks = side === 'yes' ? ob.no : ob.yes
