@@ -477,20 +477,37 @@ export default function TradingDashboard() {
           // Target price is 1 cent above highest bid
           const targetPrice = highestBid + 1
 
-          // Check if parameters are valid: bid < 90, qty at highest bid >= 125
-          const paramsValid = highestBid < 90 && highestBidQty >= PENNY_BOT_MIN_BID_QTY
-
           // If we have an existing order, check if it needs to be cancelled
           if (existingOrder) {
             const ourPrice = side === 'yes' ? existingOrder.yes_price : existingOrder.no_price
 
-            // Cancel if: outbid OR parameters no longer valid
-            const outbid = ourPrice && ourPrice < targetPrice
-            const shouldCancel = outbid || !paramsValid
+            // Only outbid if someone bid STRICTLY above our price
+            // (keep our bid if others join at the same price)
+            const outbid = ourPrice !== undefined && ourPrice < highestBid
+
+            // When we're at the top of book, check the level BELOW for support
+            // This prevents cycling from seeing our own small order as insufficient qty
+            let supportValid = true
+            if (ourPrice !== undefined && ourPrice >= highestBid) {
+              const lowerBids = bids.filter(([p]) => p < ourPrice)
+              if (lowerBids.length > 0) {
+                const nextBestBid = Math.max(...lowerBids.map(([p]) => p))
+                const nextBestQty = lowerBids.filter(([p]) => p === nextBestBid).reduce((sum, [_, q]) => sum + q, 0)
+                supportValid = nextBestBid < 90 && nextBestQty >= PENNY_BOT_MIN_BID_QTY
+              } else {
+                // No bids below us - no big order to penny-jump
+                supportValid = false
+              }
+            } else {
+              // We're below the top - use standard params check
+              supportValid = highestBid < 90 && highestBidQty >= PENNY_BOT_MIN_BID_QTY
+            }
+
+            const shouldCancel = outbid || !supportValid
 
             if (shouldCancel) {
               pennyBotPending.current.add(key)
-              const reason = !paramsValid ? 'params invalid' : 'outbid'
+              const reason = outbid ? `outbid (best: ${highestBid}¢)` : 'support dropped'
               const logMsg = `[${new Date().toLocaleTimeString()}] Cancelling ${side.toUpperCase()} @ ${ourPrice}¢ - ${reason} on ${market.ticker}`
               setPennyBotLog(prev => [logMsg, ...prev].slice(0, 50))
 
@@ -504,7 +521,8 @@ export default function TradingDashboard() {
             continue // Will re-check on next cycle after cancel
           }
 
-          // Don't place new order if params invalid
+          // For new orders, check standard params: bid < 90, qty at highest bid >= 125
+          const paramsValid = highestBid < 90 && highestBidQty >= PENNY_BOT_MIN_BID_QTY
           if (!paramsValid) continue
 
           // Check if we already hold >= max position contracts on this side
